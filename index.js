@@ -1,29 +1,52 @@
 // Delete Swipe Button — ST 1.13.4
-// Adds a trash-can icon to each message's ⋯ menu; runs /delswipe.
+// Adds a trash-can icon to each message's ⋯ menu and runs /delswipe.
 
 (function () {
   const ctx = SillyTavern.getContext();
   const { eventSource, event_types } = ctx;
 
-  console.log('[DeleteSwipeButton] loaded');
+  console.log('[DeleteSwipeButton] loaded (1.13.4)');
 
-  // Re-attach on app ready and when new AI messages render
-  eventSource.on(event_types.APP_READY, hookAllVisible);
-  eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, hookAllVisible);
+  // 1) On app ready, prime existing messages
+  eventSource.on(event_types.APP_READY, () => {
+    hookAllVisible();
+    // 2) When new AI messages render, re-hook
+    eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, hookAllVisible);
+  });
 
-  // Watch for re-renders of the icon row (.mes_buttons)
+  // 3) When the user clicks the "⋯" actions button on any message, inject AFTER it opens
+  document.addEventListener('click', (e) => {
+    const target = e.target.closest('.mes_button.extraMesButtonsHint');
+    if (!target) return;
+    // Wait a tick so ST can build `.extraMesButtons .mes_buttons`
+    setTimeout(() => {
+      const panel = findActionsRowFromEllipsis(target);
+      if (panel) attachButtonIfMissing(panel);
+    }, 0);
+  });
+
+  // 4) Safety net: if ST rebuilds the icon row for any reason, re-attach
   const mo = new MutationObserver(() => hookAllVisible());
   mo.observe(document.body, { childList: true, subtree: true });
 
+  // ===== helpers =====
+
   function hookAllVisible() {
-    // find each visible icon row inside the per-message actions
     document.querySelectorAll('.extraMesButtons .mes_buttons').forEach(attachButtonIfMissing);
   }
 
-  function attachButtonIfMissing(row) {
-    if (!row || row.querySelector('[data-st-ext="del-swipe"]')) return;
+  function findActionsRowFromEllipsis(ellipsisBtn) {
+    // Find the containing message element, then its actions row
+    const mes = ellipsisBtn.closest('.mes');
+    if (!mes) return null;
+    return mes.querySelector('.extraMesButtons .mes_buttons');
+  }
 
-    // Make an icon entry exactly like ST's
+  function attachButtonIfMissing(iconRow) {
+    if (!iconRow) return;
+    if (iconRow.querySelector('[data-st-ext="del-swipe"]')) return;
+
+    // Build an icon entry exactly like ST uses
     const btn = document.createElement('div');
     btn.setAttribute('data-st-ext', 'del-swipe');
     btn.className = 'mes_button fa-solid fa-trash-can interactable';
@@ -36,32 +59,35 @@
       ev.stopPropagation();
       try {
         await runSlash('/delswipe'); // or '/delswipe 2' to delete a specific swipe
-        notify(row, 'Swipe deleted');
+        toast(iconRow, 'Swipe deleted');
       } catch (e) {
         console.error('[DeleteSwipeButton] /delswipe failed', e);
-        notify(row, 'Failed to delete swipe', true);
+        toast(iconRow, 'Failed to delete swipe', true);
       }
     };
+
     btn.addEventListener('click', onClick);
     btn.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') onClick(e);
     });
 
-    // Add at the start so it’s easy to spot
-    row.prepend(btn);
+    // Put it first so it's easy to spot
+    iconRow.prepend(btn);
   }
 
   async function runSlash(cmd) {
+    // Prefer the public slash-command entry point
     if (window.SlashCommandParser?.parse) {
       return await window.SlashCommandParser.parse(cmd, { quiet: true });
     }
+    // Fallback that still respects slash commands
     if (typeof ctx.generateQuietPrompt === 'function') {
       return await ctx.generateQuietPrompt({ quietPrompt: cmd });
     }
     throw new Error('No slash-command entry point found.');
   }
 
-  function notify(where, text, isError = false) {
+  function toast(where, text, isError = false) {
     const n = document.createElement('div');
     n.textContent = text;
     n.style.fontSize = '.9rem';
