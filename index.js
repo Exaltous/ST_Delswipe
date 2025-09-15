@@ -1,29 +1,32 @@
-// Delete Swipe Button — ST 1.13.4 (icon-only action in ⋯ menu)
+// Delete Swipe Button — ST 1.13.4
+// Adds a trash-can icon to each message's ⋯ menu; runs /delswipe.
+
 (function () {
   const ctx = SillyTavern.getContext();
   const { eventSource, event_types } = ctx;
 
   console.log('[DeleteSwipeButton] loaded');
 
-  // Inject when app is ready and whenever a character message renders
+  // Re-attach on app ready and when new AI messages render
   eventSource.on(event_types.APP_READY, hookAllVisible);
-  eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, hookLastVisible);
+  eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, hookAllVisible);
+
+  // Watch for re-renders of the icon row (.mes_buttons)
+  const mo = new MutationObserver(() => hookAllVisible());
+  mo.observe(document.body, { childList: true, subtree: true });
 
   function hookAllVisible() {
-    document.querySelectorAll('.extraMesButtons').forEach(attachButtonIfMissing);
-  }
-  function hookLastVisible() {
-    const panels = document.querySelectorAll('.extraMesButtons');
-    if (panels.length) attachButtonIfMissing(panels[panels.length - 1]);
+    // find each visible icon row inside the per-message actions
+    document.querySelectorAll('.extraMesButtons .mes_buttons').forEach(attachButtonIfMissing);
   }
 
-  function attachButtonIfMissing(panel) {
-    if (!panel || panel.querySelector('[data-st-ext="del-swipe"]')) return;
+  function attachButtonIfMissing(row) {
+    if (!row || row.querySelector('[data-st-ext="del-swipe"]')) return;
 
-    // Create an icon-only action like other ST actions
+    // Make an icon entry exactly like ST's
     const btn = document.createElement('div');
     btn.setAttribute('data-st-ext', 'del-swipe');
-    btn.className = 'mes_button fa-solid fa-trash-can interactable'; // matches ST icons
+    btn.className = 'mes_button fa-solid fa-trash-can interactable';
     btn.setAttribute('role', 'button');
     btn.setAttribute('tabindex', '0');
     btn.setAttribute('title', 'Delete swipe');
@@ -32,21 +35,20 @@
       ev.preventDefault();
       ev.stopPropagation();
       try {
-        await runSlash('/delswipe'); // or pass an index: '/delswipe 2'
-        toast(panel, 'Swipe deleted');
+        await runSlash('/delswipe'); // or '/delswipe 2' to delete a specific swipe
+        notify(row, 'Swipe deleted');
       } catch (e) {
         console.error('[DeleteSwipeButton] /delswipe failed', e);
-        toast(panel, 'Failed to delete swipe', true);
+        notify(row, 'Failed to delete swipe', true);
       }
     };
-
     btn.addEventListener('click', onClick);
     btn.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') onClick(e);
     });
 
-    // Put it near the start so it’s visible
-    panel.prepend(btn);
+    // Add at the start so it’s easy to spot
+    row.prepend(btn);
   }
 
   async function runSlash(cmd) {
@@ -56,19 +58,18 @@
     if (typeof ctx.generateQuietPrompt === 'function') {
       return await ctx.generateQuietPrompt({ quietPrompt: cmd });
     }
-    throw new Error('No slash-command entry point found');
+    throw new Error('No slash-command entry point found.');
   }
 
-  function toast(where, text, isError = false) {
-    // minimal inline notice; fine if ST rewrites style attrs
+  function notify(where, text, isError = false) {
     const n = document.createElement('div');
     n.textContent = text;
-    n.setAttribute('custom-style',
-      `font-size:.9rem;padding:4px 8px;border-radius:6px;margin-top:6px;` +
-      (isError
-        ? 'background:rgba(200,40,40,.12);border:1px solid rgba(200,40,40,.4);'
-        : 'background:rgba(40,200,120,.12);border:1px solid rgba(40,200,120,.4);')
-    );
+    n.style.fontSize = '.9rem';
+    n.style.padding = '4px 8px';
+    n.style.borderRadius = '6px';
+    n.style.marginTop = '6px';
+    n.style.background = isError ? 'rgba(200,40,40,.12)' : 'rgba(40,200,120,.12)';
+    n.style.border = isError ? '1px solid rgba(200,40,40,.4)' : '1px solid rgba(40,200,120,.4)';
     where.appendChild(n);
     setTimeout(() => n.remove(), 1400);
   }
