@@ -1,32 +1,35 @@
-// Extension-DeleteSwipeButton / index.js
-// Adds a "Delete swipe" action to each AI message's ⋯ menu and runs /delswipe.
-// Tested against ST 1.12.x selectors; tweak selectors if your theme changes DOM.
+// Delete Swipe Button (ST 1.13.4)
+// Adds a "Delete swipe" action into each AI message's ⋯ menu and runs /delswipe.
 
 (function () {
-  const ctx = SillyTavern.getContext(); // public extension context (events, helpers, etc.)
+  const ctx = SillyTavern.getContext();
   const { eventSource, event_types } = ctx;
 
-  // When the app is ready, and whenever a character (AI) message is rendered, try to attach our action.
+  console.log('[DeleteSwipeButton] loaded');
+
+  // Hook: once app is ready + whenever a character (AI) message renders
   eventSource.on(event_types.APP_READY, () => hookAllVisible());
   eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, () => addButtonToLatest());
 
   function hookAllVisible() {
     document.querySelectorAll(messageSelector()).forEach(attachButtonIfMissing);
   }
+
   function addButtonToLatest() {
     const nodes = document.querySelectorAll(messageSelector());
     if (nodes.length) attachButtonIfMissing(nodes[nodes.length - 1]);
   }
 
-  // --- Selectors (kept a bit flexible across skins/builds) ---
+  // Target AI/character messages (not user)
   function messageSelector() {
-    // Assistant/character messages (not user)
     return '.mes[is_user="false"], .mes[is_user=false], .mes.bot, .mes.character';
   }
+
+  // ST 1.13.x uses `.extraMesButtons` for the per-message actions panel
   function actionsContainerOf(messageEl) {
-    // The per-message “⋯ Message actions” container
     return (
-      messageEl.querySelector('.message-actions') ||
+      messageEl.querySelector('.extraMesButtons') ||   // 1.13.x
+      messageEl.querySelector('.message-actions') ||   // fallback
       messageEl.querySelector('[data-st-role="message-actions"]')
     );
   }
@@ -35,10 +38,9 @@
     const panel = actionsContainerOf(messageEl);
     if (!panel) return;
 
-    // Avoid duplicates
+    // avoid duplicates
     if (panel.querySelector('[data-st-ext="del-swipe"]')) return;
 
-    // Build the action item
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.setAttribute('data-st-ext', 'del-swipe');
@@ -48,7 +50,7 @@
     btn.style.gap = '0.4rem';
 
     const ico = document.createElement('span');
-    ico.textContent = '🗑️';
+    ico.textContent = '🗑️'; // wastebasket emoji
     const label = document.createElement('span');
     label.textContent = 'Delete swipe';
 
@@ -58,7 +60,7 @@
       ev.preventDefault();
       ev.stopPropagation();
       try {
-        await runSlash('/delswipe'); // deletes CURRENT swipe (optional index: "/delswipe 2")
+        await runSlash('/delswipe'); // deletes CURRENT swipe; pass an index like "/delswipe 2" if desired
         toast(panel, 'Swipe deleted');
       } catch (e) {
         console.error('[DeleteSwipeButton] /delswipe failed', e);
@@ -66,17 +68,14 @@
       }
     });
 
-    // Put it near the top so it’s easy to find
+    // put near the top of the menu for visibility
     panel.prepend(btn);
   }
 
   async function runSlash(cmd) {
-    // Prefer the public slash-command parser if available.
     if (window.SlashCommandParser?.parse) {
-      // quiet = don't echo to chat
       return await window.SlashCommandParser.parse(cmd, { quiet: true });
     }
-    // Fallback: generateQuietPrompt respects slash commands in most builds
     if (typeof ctx.generateQuietPrompt === 'function') {
       return await ctx.generateQuietPrompt({ quietPrompt: cmd });
     }
