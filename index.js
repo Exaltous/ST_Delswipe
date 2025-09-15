@@ -1,74 +1,51 @@
-// Delete Swipe Button (ST 1.13.4)
-// Adds a "Delete swipe" action into each AI message's ⋯ menu and runs /delswipe.
-
+// Delete Swipe Button — ST 1.13.4 (icon-only action in ⋯ menu)
 (function () {
   const ctx = SillyTavern.getContext();
   const { eventSource, event_types } = ctx;
 
   console.log('[DeleteSwipeButton] loaded');
 
-  // Hook: once app is ready + whenever a character (AI) message renders
-  eventSource.on(event_types.APP_READY, () => hookAllVisible());
-  eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, () => addButtonToLatest());
+  // Inject when app is ready and whenever a character message renders
+  eventSource.on(event_types.APP_READY, hookAllVisible);
+  eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, hookLastVisible);
 
   function hookAllVisible() {
-    document.querySelectorAll(messageSelector()).forEach(attachButtonIfMissing);
+    document.querySelectorAll('.extraMesButtons').forEach(attachButtonIfMissing);
+  }
+  function hookLastVisible() {
+    const panels = document.querySelectorAll('.extraMesButtons');
+    if (panels.length) attachButtonIfMissing(panels[panels.length - 1]);
   }
 
-  function addButtonToLatest() {
-    const nodes = document.querySelectorAll(messageSelector());
-    if (nodes.length) attachButtonIfMissing(nodes[nodes.length - 1]);
-  }
+  function attachButtonIfMissing(panel) {
+    if (!panel || panel.querySelector('[data-st-ext="del-swipe"]')) return;
 
-  // Target AI/character messages (not user)
-  function messageSelector() {
-    return '.mes[is_user="false"], .mes[is_user=false], .mes.bot, .mes.character';
-  }
-
-  // ST 1.13.x uses `.extraMesButtons` for the per-message actions panel
-  function actionsContainerOf(messageEl) {
-    return (
-      messageEl.querySelector('.extraMesButtons') ||   // 1.13.x
-      messageEl.querySelector('.message-actions') ||   // fallback
-      messageEl.querySelector('[data-st-role="message-actions"]')
-    );
-  }
-
-  function attachButtonIfMissing(messageEl) {
-    const panel = actionsContainerOf(messageEl);
-    if (!panel) return;
-
-    // avoid duplicates
-    if (panel.querySelector('[data-st-ext="del-swipe"]')) return;
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
+    // Create an icon-only action like other ST actions
+    const btn = document.createElement('div');
     btn.setAttribute('data-st-ext', 'del-swipe');
-    btn.className = 'st-action';
-    btn.style.display = 'flex';
-    btn.style.alignItems = 'center';
-    btn.style.gap = '0.4rem';
+    btn.className = 'mes_button fa-solid fa-trash-can interactable'; // matches ST icons
+    btn.setAttribute('role', 'button');
+    btn.setAttribute('tabindex', '0');
+    btn.setAttribute('title', 'Delete swipe');
 
-    const ico = document.createElement('span');
-    ico.textContent = '🗑️'; // wastebasket emoji
-    const label = document.createElement('span');
-    label.textContent = 'Delete swipe';
-
-    btn.append(ico, label);
-
-    btn.addEventListener('click', async (ev) => {
+    const onClick = async (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
       try {
-        await runSlash('/delswipe'); // deletes CURRENT swipe; pass an index like "/delswipe 2" if desired
+        await runSlash('/delswipe'); // or pass an index: '/delswipe 2'
         toast(panel, 'Swipe deleted');
       } catch (e) {
         console.error('[DeleteSwipeButton] /delswipe failed', e);
         toast(panel, 'Failed to delete swipe', true);
       }
+    };
+
+    btn.addEventListener('click', onClick);
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') onClick(e);
     });
 
-    // put near the top of the menu for visibility
+    // Put it near the start so it’s visible
     panel.prepend(btn);
   }
 
@@ -79,18 +56,19 @@
     if (typeof ctx.generateQuietPrompt === 'function') {
       return await ctx.generateQuietPrompt({ quietPrompt: cmd });
     }
-    throw new Error('No slash-command entry point found.');
+    throw new Error('No slash-command entry point found');
   }
 
   function toast(where, text, isError = false) {
+    // minimal inline notice; fine if ST rewrites style attrs
     const n = document.createElement('div');
     n.textContent = text;
-    n.style.fontSize = '0.9rem';
-    n.style.padding = '4px 8px';
-    n.style.borderRadius = '6px';
-    n.style.marginTop = '6px';
-    n.style.background = isError ? 'rgba(200,40,40,.12)' : 'rgba(40,200,120,.12)';
-    n.style.border = isError ? '1px solid rgba(200,40,40,.4)' : '1px solid rgba(40,200,120,.4)';
+    n.setAttribute('custom-style',
+      `font-size:.9rem;padding:4px 8px;border-radius:6px;margin-top:6px;` +
+      (isError
+        ? 'background:rgba(200,40,40,.12);border:1px solid rgba(200,40,40,.4);'
+        : 'background:rgba(40,200,120,.12);border:1px solid rgba(40,200,120,.4);')
+    );
     where.appendChild(n);
     setTimeout(() => n.remove(), 1400);
   }
