@@ -1,8 +1,5 @@
 // delswipe-button/index.js
 
-import { executeSlashCommand } from '../../../../slash-commands.js';
-import { eventSource, event_types } from '../../../../script.js';
-
 const extensionName = 'delswipe-button';
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
@@ -30,7 +27,37 @@ function createDelSwipeButton() {
     // Add click handler
     button.addEventListener('click', async () => {
         try {
-            await executeSlashCommand('/delswipe', [], null, false, false);
+            // Try multiple methods to execute the command
+            if (window.executeSlashCommandsNow) {
+                await window.executeSlashCommandsNow('/delswipe');
+            } else if (window.executeSlashCommand) {
+                await window.executeSlashCommand('/delswipe');
+            } else {
+                // Fallback: simulate typing the command
+                const chatInput = document.getElementById('send_textarea');
+                if (chatInput) {
+                    const originalValue = chatInput.value;
+                    chatInput.value = '/delswipe';
+                    chatInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    
+                    // Simulate Enter key press
+                    const enterEvent = new KeyboardEvent('keydown', {
+                        key: 'Enter',
+                        code: 'Enter',
+                        keyCode: 13,
+                        which: 13,
+                        bubbles: true
+                    });
+                    chatInput.dispatchEvent(enterEvent);
+                    
+                    // Restore original value after a short delay
+                    setTimeout(() => {
+                        chatInput.value = originalValue;
+                    }, 100);
+                } else {
+                    console.error('Could not find chat input element');
+                }
+            }
             console.log('DelSwipe command executed successfully');
         } catch (error) {
             console.error('Error executing delswipe command:', error);
@@ -203,14 +230,24 @@ function setupSettingsHandlers() {
 }
 
 // Initialize when DOM is ready
+function waitForSillyTavern() {
+    if (document.getElementById('send_textarea')) {
+        init();
+    } else {
+        setTimeout(waitForSillyTavern, 500);
+    }
+}
+
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', waitForSillyTavern);
 } else {
-    init();
+    waitForSillyTavern();
 }
 
 // Setup settings handlers
 setupSettingsHandlers();
 
 // Export for SillyTavern extension system
-export { init, extensionName };
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { init, extensionName };
+}
