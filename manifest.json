@@ -1,12 +1,11 @@
 {
     "display_name": "DelSwipe Button",
     "loading_order": 100,
-    "requires": [],
-    "optional": [],
     "js": "index.js",
-    "css": "style.css",
-    "author": "Custom Extension",
+    "author": "Your Name",
     "version": "1.0.0",
-    "homePage": "",
-    "description": "Adds a convenient UI button to execute the /delswipe command"
+    "homePage": "https://github.com/YOUR-USERNAME/YOUR-REPO-NAME",
+    "description": "Adds a floating button to execute the /delswipe command",
+    "auto_update": true,
+    "minimum_client_version": "1.12.0"
 }
