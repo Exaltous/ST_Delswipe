@@ -1,102 +1,216 @@
-// Delete Swipe Button — ST 1.13.4
-// Adds a trash-can icon to each message's ⋯ menu and runs /delswipe.
+// delswipe-button/index.js
 
-(function () {
-  const ctx = SillyTavern.getContext();
-  const { eventSource, event_types } = ctx;
+import { executeSlashCommand } from '../../../../slash-commands.js';
+import { eventSource, event_types } from '../../../../script.js';
 
-  console.log('[DeleteSwipeButton] loaded (1.13.4)');
+const extensionName = 'delswipe-button';
+const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
-  // 1) On app ready, prime existing messages
-  eventSource.on(event_types.APP_READY, () => {
-    hookAllVisible();
-    // 2) When new AI messages render, re-hook
-    eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, hookAllVisible);
-  });
+// Extension settings
+const defaultSettings = {
+    buttonPosition: 'bottom-right',
+    buttonText: 'Del Swipe',
+    showTooltip: true
+};
 
-  // 3) When the user clicks the "⋯" actions button on any message, inject AFTER it opens
-  document.addEventListener('click', (e) => {
-    const target = e.target.closest('.mes_button.extraMesButtonsHint');
-    if (!target) return;
-    // Wait a tick so ST can build `.extraMesButtons .mes_buttons`
-    setTimeout(() => {
-      const panel = findActionsRowFromEllipsis(target);
-      if (panel) attachButtonIfMissing(panel);
-    }, 0);
-  });
+let extensionSettings = defaultSettings;
 
-  // 4) Safety net: if ST rebuilds the icon row for any reason, re-attach
-  const mo = new MutationObserver(() => hookAllVisible());
-  mo.observe(document.body, { childList: true, subtree: true });
-
-  // ===== helpers =====
-
-  function hookAllVisible() {
-    document.querySelectorAll('.extraMesButtons .mes_buttons').forEach(attachButtonIfMissing);
-  }
-
-  function findActionsRowFromEllipsis(ellipsisBtn) {
-    // Find the containing message element, then its actions row
-    const mes = ellipsisBtn.closest('.mes');
-    if (!mes) return null;
-    return mes.querySelector('.extraMesButtons .mes_buttons');
-  }
-
-  function attachButtonIfMissing(iconRow) {
-    if (!iconRow) return;
-    if (iconRow.querySelector('[data-st-ext="del-swipe"]')) return;
-
-    // Build an icon entry exactly like ST uses
-    const btn = document.createElement('div');
-    btn.setAttribute('data-st-ext', 'del-swipe');
-    btn.className = 'mes_button fa-solid fa-trash-can interactable';
-    btn.setAttribute('role', 'button');
-    btn.setAttribute('tabindex', '0');
-    btn.setAttribute('title', 'Delete swipe');
-
-    const onClick = async (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      try {
-        await runSlash('/delswipe'); // or '/delswipe 2' to delete a specific swipe
-        toast(iconRow, 'Swipe deleted');
-      } catch (e) {
-        console.error('[DeleteSwipeButton] /delswipe failed', e);
-        toast(iconRow, 'Failed to delete swipe', true);
-      }
-    };
-
-    btn.addEventListener('click', onClick);
-    btn.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') onClick(e);
+// Create the button element
+function createDelSwipeButton() {
+    const button = document.createElement('button');
+    button.id = 'delswipe-button';
+    button.textContent = extensionSettings.buttonText;
+    button.className = 'menu_button delswipe-btn';
+    
+    // Add tooltip if enabled
+    if (extensionSettings.showTooltip) {
+        button.title = 'Delete the current swipe';
+    }
+    
+    // Add click handler
+    button.addEventListener('click', async () => {
+        try {
+            await executeSlashCommand('/delswipe', [], null, false, false);
+            console.log('DelSwipe command executed successfully');
+        } catch (error) {
+            console.error('Error executing delswipe command:', error);
+        }
     });
+    
+    return button;
+}
 
-    // Put it first so it's easy to spot
-    iconRow.prepend(btn);
-  }
-
-  async function runSlash(cmd) {
-    // Prefer the public slash-command entry point
-    if (window.SlashCommandParser?.parse) {
-      return await window.SlashCommandParser.parse(cmd, { quiet: true });
+// Position the button based on settings
+function positionButton(button) {
+    button.style.position = 'fixed';
+    button.style.zIndex = '1000';
+    button.style.padding = '8px 12px';
+    button.style.margin = '10px';
+    button.style.backgroundColor = 'var(--SmartThemeBodyColor)';
+    button.style.color = 'var(--SmartThemeEmColor)';
+    button.style.border = '1px solid var(--SmartThemeBorderColor)';
+    button.style.borderRadius = '4px';
+    button.style.cursor = 'pointer';
+    button.style.fontSize = '12px';
+    button.style.fontWeight = 'bold';
+    button.style.transition = 'all 0.2s ease';
+    
+    // Position based on settings
+    switch (extensionSettings.buttonPosition) {
+        case 'top-left':
+            button.style.top = '10px';
+            button.style.left = '10px';
+            break;
+        case 'top-right':
+            button.style.top = '10px';
+            button.style.right = '10px';
+            break;
+        case 'bottom-left':
+            button.style.bottom = '10px';
+            button.style.left = '10px';
+            break;
+        case 'bottom-right':
+        default:
+            button.style.bottom = '10px';
+            button.style.right = '10px';
+            break;
     }
-    // Fallback that still respects slash commands
-    if (typeof ctx.generateQuietPrompt === 'function') {
-      return await ctx.generateQuietPrompt({ quietPrompt: cmd });
-    }
-    throw new Error('No slash-command entry point found.');
-  }
+    
+    // Add hover effects
+    button.addEventListener('mouseenter', () => {
+        button.style.backgroundColor = 'var(--SmartThemeQuoteColor)';
+        button.style.transform = 'scale(1.05)';
+    });
+    
+    button.addEventListener('mouseleave', () => {
+        button.style.backgroundColor = 'var(--SmartThemeBodyColor)';
+        button.style.transform = 'scale(1)';
+    });
+}
 
-  function toast(where, text, isError = false) {
-    const n = document.createElement('div');
-    n.textContent = text;
-    n.style.fontSize = '.9rem';
-    n.style.padding = '4px 8px';
-    n.style.borderRadius = '6px';
-    n.style.marginTop = '6px';
-    n.style.background = isError ? 'rgba(200,40,40,.12)' : 'rgba(40,200,120,.12)';
-    n.style.border = isError ? '1px solid rgba(200,40,40,.4)' : '1px solid rgba(40,200,120,.4)';
-    where.appendChild(n);
-    setTimeout(() => n.remove(), 1400);
-  }
-})();
+// Create settings HTML
+function createSettingsHtml() {
+    return `
+        <div class="delswipe-settings">
+            <h3>DelSwipe Button Settings</h3>
+            
+            <div class="form-group">
+                <label for="delswipe-button-text">Button Text:</label>
+                <input type="text" id="delswipe-button-text" value="${extensionSettings.buttonText}" />
+            </div>
+            
+            <div class="form-group">
+                <label for="delswipe-button-position">Button Position:</label>
+                <select id="delswipe-button-position">
+                    <option value="top-left" ${extensionSettings.buttonPosition === 'top-left' ? 'selected' : ''}>Top Left</option>
+                    <option value="top-right" ${extensionSettings.buttonPosition === 'top-right' ? 'selected' : ''}>Top Right</option>
+                    <option value="bottom-left" ${extensionSettings.buttonPosition === 'bottom-left' ? 'selected' : ''}>Bottom Left</option>
+                    <option value="bottom-right" ${extensionSettings.buttonPosition === 'bottom-right' ? 'selected' : ''}>Bottom Right</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="delswipe-show-tooltip" ${extensionSettings.showTooltip ? 'checked' : ''} />
+                    Show tooltip on hover
+                </label>
+            </div>
+            
+            <div class="form-group">
+                <button id="delswipe-save-settings" class="menu_button">Save Settings</button>
+            </div>
+        </div>
+    `;
+}
+
+// Load settings from localStorage
+function loadSettings() {
+    const saved = localStorage.getItem(`${extensionName}_settings`);
+    if (saved) {
+        extensionSettings = { ...defaultSettings, ...JSON.parse(saved) };
+    }
+}
+
+// Save settings to localStorage
+function saveSettings() {
+    localStorage.setItem(`${extensionName}_settings`, JSON.stringify(extensionSettings));
+}
+
+// Update button based on new settings
+function updateButton() {
+    const existingButton = document.getElementById('delswipe-button');
+    if (existingButton) {
+        existingButton.remove();
+    }
+    
+    const newButton = createDelSwipeButton();
+    positionButton(newButton);
+    document.body.appendChild(newButton);
+}
+
+// Initialize the extension
+function init() {
+    loadSettings();
+    
+    // Create and add the button
+    const button = createDelSwipeButton();
+    positionButton(button);
+    document.body.appendChild(button);
+    
+    console.log('DelSwipe Button extension loaded');
+}
+
+// Settings panel integration
+function addSettingsPanel() {
+    const settingsHtml = createSettingsHtml();
+    
+    // Add to extensions settings if available
+    if (typeof window.registerExtensionSettings === 'function') {
+        window.registerExtensionSettings(extensionName, settingsHtml, () => {
+            // Settings save handler
+            const buttonText = document.getElementById('delswipe-button-text').value;
+            const buttonPosition = document.getElementById('delswipe-button-position').value;
+            const showTooltip = document.getElementById('delswipe-show-tooltip').checked;
+            
+            extensionSettings.buttonText = buttonText;
+            extensionSettings.buttonPosition = buttonPosition;
+            extensionSettings.showTooltip = showTooltip;
+            
+            saveSettings();
+            updateButton();
+        });
+    }
+}
+
+// Event listeners for settings changes
+function setupSettingsHandlers() {
+    document.addEventListener('click', (e) => {
+        if (e.target.id === 'delswipe-save-settings') {
+            const buttonText = document.getElementById('delswipe-button-text').value;
+            const buttonPosition = document.getElementById('delswipe-button-position').value;
+            const showTooltip = document.getElementById('delswipe-show-tooltip').checked;
+            
+            extensionSettings.buttonText = buttonText;
+            extensionSettings.buttonPosition = buttonPosition;
+            extensionSettings.showTooltip = showTooltip;
+            
+            saveSettings();
+            updateButton();
+            
+            console.log('DelSwipe Button settings saved');
+        }
+    });
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
+
+// Setup settings handlers
+setupSettingsHandlers();
+
+// Export for SillyTavern extension system
+export { init, extensionName };

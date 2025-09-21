@@ -1,9 +1,12 @@
 {
-  "display_name": "Delete Swipe Button",
-  "author": "Exalted Praesidium",
-  "version": "1.0.0",
-  "minimum_client_version": "1.12.0",
-  "auto_update": false,
-  "js": "index.js",
-  "description": "Adds a 'Delete swipe' item to the per-message actions menu and invokes /delswipe for the current swipe."
+    "display_name": "DelSwipe Button",
+    "loading_order": 100,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Custom Extension",
+    "version": "1.0.0",
+    "homePage": "",
+    "description": "Adds a convenient UI button to execute the /delswipe command"
 }
