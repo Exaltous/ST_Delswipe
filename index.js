@@ -26,7 +26,7 @@ function initDelSwipeExtension() {
 
 // Add DelSwipe to the toolbar menu
 function addToToolbar() {
-    console.log('[DELSWIPE] Adding DelSwipe to toolbar');
+    console.log('[DELSWIPE] Adding DelSwipe to rightSendForm toolbar');
     
     // Remove existing delswipe button
     const existing = document.getElementById('delswipe-toolbar-btn');
@@ -35,60 +35,37 @@ function addToToolbar() {
         console.log('[DELSWIPE] Removed existing toolbar button');
     }
     
-    // Find the toolbar container - try multiple selectors
-    const toolbarSelectors = [
-        '.right_panel_items',           // Main toolbar
-        '.mes_buttons',                 // Message buttons
-        '.send_form .right_panel_items', // Send form toolbar
-        '.rightSendForm',               // Alternative toolbar
-        '.toolbar',                     // Generic toolbar
-        '#rightSendForm'                // ID-based selector
-    ];
-    
-    let toolbar = null;
-    for (const selector of toolbarSelectors) {
-        toolbar = document.querySelector(selector);
-        if (toolbar) {
-            console.log(`[DELSWIPE] Found toolbar using selector: ${selector}`);
-            break;
-        }
-    }
+    // Target the specific rightSendForm container
+    const toolbar = document.getElementById('rightSendForm');
     
     if (!toolbar) {
-        console.log('[DELSWIPE] No toolbar found, trying to find parent of existing buttons');
-        // Try to find toolbar by looking for existing buttons
-        const existingBtn = document.querySelector('[title*="Generate"], [title*="Attach"], .mes_button, .right_menu_button');
-        if (existingBtn) {
-            toolbar = existingBtn.parentElement;
-            console.log('[DELSWIPE] Found toolbar via existing button parent');
-        }
-    }
-    
-    if (!toolbar) {
-        console.log('[DELSWIPE] Could not find toolbar, aborting');
+        console.log('[DELSWIPE] Could not find rightSendForm, aborting');
         return;
     }
+    
+    console.log('[DELSWIPE] Found rightSendForm with', toolbar.children.length, 'children');
     
     // Create toolbar button matching the style of existing buttons
     const delSwipeBtn = document.createElement('div');
     delSwipeBtn.id = 'delswipe-toolbar-btn';
-    delSwipeBtn.className = 'right_menu_button menu_button fa-solid fa-trash-can';
+    delSwipeBtn.className = 'fa-solid fa-trash-can interactable';
     delSwipeBtn.title = 'Delete current swipe';
-    delSwipeBtn.setAttribute('data-i18n', '[title]Delete Swipe');
     
-    // Style to match other toolbar buttons
+    // Style to match other toolbar buttons exactly
     delSwipeBtn.style.cssText = `
         cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
         padding: 8px;
         margin: 2px;
         border-radius: 4px;
         transition: background-color 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--SmartThemeEmColor, #fff);
+        font-size: 16px;
     `;
     
-    // Add hover effect
+    // Add hover effect to match other buttons
     delSwipeBtn.addEventListener('mouseenter', () => {
         delSwipeBtn.style.backgroundColor = 'var(--SmartThemeQuoteColor, rgba(255,255,255,0.1))';
     });
@@ -100,8 +77,15 @@ function addToToolbar() {
     // Add click handler
     delSwipeBtn.addEventListener('click', executeDelSwipeWorking);
     
-    // Insert the button (try to place it near other utility buttons)
-    toolbar.appendChild(delSwipeBtn);
+    // Insert the button before the send button (which should be the last child)
+    const sendButton = toolbar.lastElementChild;
+    if (sendButton) {
+        toolbar.insertBefore(delSwipeBtn, sendButton);
+        console.log('[DELSWIPE] Inserted DelSwipe button before send button');
+    } else {
+        toolbar.appendChild(delSwipeBtn);
+        console.log('[DELSWIPE] Appended DelSwipe button to toolbar');
+    }
     
     console.log('[DELSWIPE] Toolbar button created and added');
     
