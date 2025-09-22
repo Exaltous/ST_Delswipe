@@ -1,191 +1,169 @@
-// DelSwipe Button Extension for SillyTavern
-// Uses proper SillyTavern extension API
+// DelSwipe Button Extension - Working Version
+// Uses the proven method that worked in testing
 
-import { getContext } from '../../../extensions.js';
+console.log('[DELSWIPE] Extension starting...');
 
-const MODULE_NAME = 'delswipe-button';
-
-console.log(`[${MODULE_NAME}] Loading DelSwipe Button Extension...`);
-
-let isInitialized = false;
-let extensionSettings = {};
-
-// Function to create and show the button
-function createDelSwipeButton() {
-    // Remove existing button if present
-    const existingButton = document.getElementById('delswipe-btn');
-    if (existingButton) {
-        existingButton.remove();
+// Main initialization
+function initDelSwipeExtension() {
+    console.log('[DELSWIPE] Initializing DelSwipe Button Extension');
+    
+    // Wait for SillyTavern to be ready
+    function waitForST() {
+        const chatArea = document.getElementById('send_textarea');
+        if (chatArea && document.body) {
+            console.log('[DELSWIPE] SillyTavern is ready, creating button');
+            createWorkingButton();
+        } else {
+            console.log('[DELSWIPE] Waiting for SillyTavern to load...');
+            setTimeout(waitForST, 1000);
+        }
     }
     
-    // Create the button element
-    const button = document.createElement('button');
-    button.id = 'delswipe-btn';
-    button.innerHTML = '🗑️ Del Swipe';
-    button.title = 'Delete current swipe (/delswipe)';
-    button.type = 'button';
+    waitForST();
+}
+
+// Create the working button using the tested method
+function createWorkingButton() {
+    console.log('[DELSWIPE] Creating working button');
     
-    // Apply styles
-    Object.assign(button.style, {
-        position: 'fixed',
-        bottom: '20px',
-        right: '20px',
-        zIndex: '10000',
-        padding: '10px 15px',
-        backgroundColor: 'var(--SmartThemeBodyColor, #2b2a33)',
-        color: 'var(--SmartThemeEmColor, #fff)',
-        border: '2px solid var(--SmartThemeBorderColor, #555)',
-        borderRadius: '8px',
-        cursor: 'pointer',
-        fontSize: '14px',
-        fontWeight: 'bold',
-        fontFamily: 'inherit',
-        boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-        transition: 'all 0.2s ease',
-        userSelect: 'none',
-        whiteSpace: 'nowrap'
-    });
+    // Remove existing button
+    const existing = document.getElementById('delswipe-working-btn');
+    if (existing) {
+        existing.remove();
+        console.log('[DELSWIPE] Removed existing button');
+    }
+    
+    // Create button with the exact working styling
+    const button = document.createElement('button');
+    button.id = 'delswipe-working-btn';
+    button.innerHTML = '🗑️ Del Swipe';
+    button.title = 'Delete current swipe';
+    button.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 10000;
+        padding: 10px 15px;
+        background: var(--SmartThemeBodyColor, #444);
+        color: var(--SmartThemeEmColor, white);
+        border: 2px solid var(--SmartThemeBorderColor, #666);
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        font-family: inherit;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        transition: all 0.2s ease;
+        user-select: none;
+        white-space: nowrap;
+    `;
     
     // Add hover effects
     button.addEventListener('mouseenter', () => {
-        button.style.backgroundColor = 'var(--SmartThemeQuoteColor, #4a4458)';
+        button.style.backgroundColor = 'var(--SmartThemeQuoteColor, #666)';
         button.style.transform = 'scale(1.05)';
     });
     
     button.addEventListener('mouseleave', () => {
-        button.style.backgroundColor = 'var(--SmartThemeBodyColor, #2b2a33)';
+        button.style.backgroundColor = 'var(--SmartThemeBodyColor, #444)';
         button.style.transform = 'scale(1)';
     });
     
-    // Add click handler
-    button.addEventListener('click', executeDelSwipe);
+    // Use the proven working click handler
+    button.onclick = executeDelSwipeWorking;
     
-    // Add to page
     document.body.appendChild(button);
+    console.log('[DELSWIPE] Working button created and added to page');
     
-    console.log(`[${MODULE_NAME}] Button created and added to page`);
-    return button;
+    // Verify button exists
+    setTimeout(() => {
+        const testBtn = document.getElementById('delswipe-working-btn');
+        if (testBtn) {
+            console.log('[DELSWIPE] Button confirmed visible on page');
+        } else {
+            console.log('[DELSWIPE] ERROR: Button not found after creation');
+        }
+    }, 100);
 }
 
-// Function to execute the delswipe command
-async function executeDelSwipe() {
-    console.log(`[${MODULE_NAME}] Button clicked, executing delswipe...`);
+// The proven working execution method
+function executeDelSwipeWorking() {
+    console.log('[DELSWIPE] Button clicked! Executing delswipe...');
     
-    try {
-        const context = getContext();
+    const input = document.getElementById('send_textarea');
+    if (input) {
+        const originalValue = input.value;
+        input.value = '/delswipe';
+        input.focus();
         
-        // Method 1: Try using SillyTavern's slash command system
-        if (context && typeof context.executeSlashCommands === 'function') {
-            await context.executeSlashCommands('/delswipe');
-            console.log(`[${MODULE_NAME}] Executed via context.executeSlashCommands`);
-            return;
-        }
+        // Try multiple event approaches
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
         
-        // Method 2: Try the global executeSlashCommandsNow function
-        if (typeof window.executeSlashCommandsNow === 'function') {
-            await window.executeSlashCommandsNow('/delswipe');
-            console.log(`[${MODULE_NAME}] Executed via executeSlashCommandsNow`);
-            return;
-        }
-        
-        // Method 3: Try executeSlashCommand
-        if (typeof window.executeSlashCommand === 'function') {
-            await window.executeSlashCommand('/delswipe', [], null, false, false);
-            console.log(`[${MODULE_NAME}] Executed via executeSlashCommand`);
-            return;
-        }
-        
-        // Method 4: Try SlashCommandParser if available
-        if (typeof window.SlashCommandParser !== 'undefined' && window.SlashCommandParser.executeSlashCommand) {
-            await window.SlashCommandParser.executeSlashCommand('/delswipe');
-            console.log(`[${MODULE_NAME}] Executed via SlashCommandParser`);
-            return;
-        }
-        
-        // Method 5: Simulate typing in chat input
-        const chatInput = document.getElementById('send_textarea');
-        if (chatInput) {
-            const originalValue = chatInput.value;
-            
-            // Set the command
-            chatInput.value = '/delswipe';
-            chatInput.focus();
-            
-            // Trigger input event
-            chatInput.dispatchEvent(new Event('input', { bubbles: true }));
-            
-            // Simulate pressing Enter
-            const enterEvent = new KeyboardEvent('keydown', {
+        // Try different Enter key variations
+        setTimeout(() => {
+            // Method 1: KeyboardEvent
+            input.dispatchEvent(new KeyboardEvent('keydown', {
                 key: 'Enter',
                 code: 'Enter',
                 keyCode: 13,
                 which: 13,
                 bubbles: true,
                 cancelable: true
-            });
+            }));
             
-            chatInput.dispatchEvent(enterEvent);
-            
-            // Restore original value after a delay
+            // Method 2: Try keypress
             setTimeout(() => {
-                if (chatInput.value === '/delswipe') {
-                    chatInput.value = originalValue;
-                }
-            }, 200);
-            
-            console.log(`[${MODULE_NAME}] Executed via chat input simulation`);
-            return;
-        }
+                input.dispatchEvent(new KeyboardEvent('keypress', {
+                    key: 'Enter',
+                    keyCode: 13,
+                    bubbles: true
+                }));
+                
+                // Method 3: Try clicking send button if it exists
+                setTimeout(() => {
+                    const sendBtn = document.getElementById('send_but') || 
+                                   document.querySelector('[title*="Send"], [title*="send"], .send_button, #send_button');
+                    if (sendBtn) {
+                        console.log('[DELSWIPE] Found send button, clicking it');
+                        sendBtn.click();
+                    }
+                }, 50);
+            }, 50);
+        }, 50);
         
-        console.error(`[${MODULE_NAME}] No available method to execute delswipe command`);
-        
-    } catch (error) {
-        console.error(`[${MODULE_NAME}] Error executing delswipe:`, error);
+        console.log('[DELSWIPE] Command execution attempted');
+    } else {
+        console.log('[DELSWIPE] ERROR: Could not find chat input');
     }
 }
 
-// Function to check if SillyTavern is ready
-function isSillyTavernReady() {
-    return document.getElementById('send_textarea') !== null && 
-           document.body && 
-           document.readyState === 'complete';
+// Multiple initialization attempts
+console.log('[DELSWIPE] Setting up initialization...');
+
+// Method 1: DOM ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDelSwipeExtension);
+} else {
+    setTimeout(initDelSwipeExtension, 100);
 }
 
-// Extension initialization function (required by SillyTavern)
-function init() {
-    if (isInitialized) {
-        console.log(`[${MODULE_NAME}] Already initialized, skipping...`);
-        return;
+// Method 2: Delayed fallback
+setTimeout(() => {
+    if (!document.getElementById('delswipe-working-btn')) {
+        console.log('[DELSWIPE] Fallback initialization...');
+        initDelSwipeExtension();
     }
-    
-    console.log(`[${MODULE_NAME}] Initializing extension...`);
-    
-    if (!isSillyTavernReady()) {
-        console.log(`[${MODULE_NAME}] SillyTavern not ready yet, retrying in 1 second...`);
-        setTimeout(init, 1000);
-        return;
-    }
-    
-    // Get extension context and settings
-    const context = getContext();
-    if (context && context.extensionSettings) {
-        extensionSettings = context.extensionSettings[MODULE_NAME] || {};
-    }
-    
-    // Create the button
-    createDelSwipeButton();
-    
-    // Set up periodic check to recreate button if it disappears
-    setInterval(() => {
-        if (!document.getElementById('delswipe-btn')) {
-            console.log(`[${MODULE_NAME}] Button missing, recreating...`);
-            createDelSwipeButton();
+}, 3000);
+
+// Method 3: Window load
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        if (!document.getElementById('delswipe-working-btn')) {
+            console.log('[DELSWIPE] Window load initialization...');
+            initDelSwipeExtension();
         }
-    }, 5000);
-    
-    isInitialized = true;
-    console.log(`[${MODULE_NAME}] Extension initialized successfully`);
-}
+    }, 1000);
+});
 
-// Required export for SillyTavern extension system
-export { init };
+console.log('[DELSWIPE] Extension script loaded');
