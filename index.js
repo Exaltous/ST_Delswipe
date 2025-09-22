@@ -1,18 +1,20 @@
-// DelSwipe Button Extension - Working Version
-// Uses the proven method that worked in testing
+// DelSwipe Button Extension - Toolbar Integration Version
+// Adds DelSwipe to the SillyTavern toolbar menu
 
 console.log('[DELSWIPE] Extension starting...');
 
 // Main initialization
 function initDelSwipeExtension() {
-    console.log('[DELSWIPE] Initializing DelSwipe Button Extension');
+    console.log('[DELSWIPE] Initializing DelSwipe toolbar integration');
     
     // Wait for SillyTavern to be ready
     function waitForST() {
+        const toolbar = document.querySelector('.toolbar, .mes_buttons, .rightSendForm, .send_form, .right_panel_items');
         const chatArea = document.getElementById('send_textarea');
+        
         if (chatArea && document.body) {
-            console.log('[DELSWIPE] SillyTavern is ready, creating button');
-            createWorkingButton();
+            console.log('[DELSWIPE] SillyTavern is ready, adding to toolbar');
+            addToToolbar();
         } else {
             console.log('[DELSWIPE] Waiting for SillyTavern to load...');
             setTimeout(waitForST, 1000);
@@ -22,73 +24,134 @@ function initDelSwipeExtension() {
     waitForST();
 }
 
-// Create the working button using the tested method
-function createWorkingButton() {
-    console.log('[DELSWIPE] Creating working button');
+// Add DelSwipe to the toolbar menu
+function addToToolbar() {
+    console.log('[DELSWIPE] Adding DelSwipe to toolbar');
     
-    // Remove existing button
-    const existing = document.getElementById('delswipe-working-btn');
+    // Remove existing delswipe button
+    const existing = document.getElementById('delswipe-toolbar-btn');
     if (existing) {
         existing.remove();
-        console.log('[DELSWIPE] Removed existing button');
+        console.log('[DELSWIPE] Removed existing toolbar button');
     }
     
-    // Create button with the exact working styling
-    const button = document.createElement('button');
-    button.id = 'delswipe-working-btn';
-    button.innerHTML = '🗑️ Del Swipe';
-    button.title = 'Delete current swipe';
-    button.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 10000;
-        padding: 10px 15px;
-        background: var(--SmartThemeBodyColor, #444);
-        color: var(--SmartThemeEmColor, white);
-        border: 2px solid var(--SmartThemeBorderColor, #666);
-        border-radius: 8px;
+    // Find the toolbar container - try multiple selectors
+    const toolbarSelectors = [
+        '.right_panel_items',           // Main toolbar
+        '.mes_buttons',                 // Message buttons
+        '.send_form .right_panel_items', // Send form toolbar
+        '.rightSendForm',               // Alternative toolbar
+        '.toolbar',                     // Generic toolbar
+        '#rightSendForm'                // ID-based selector
+    ];
+    
+    let toolbar = null;
+    for (const selector of toolbarSelectors) {
+        toolbar = document.querySelector(selector);
+        if (toolbar) {
+            console.log(`[DELSWIPE] Found toolbar using selector: ${selector}`);
+            break;
+        }
+    }
+    
+    if (!toolbar) {
+        console.log('[DELSWIPE] No toolbar found, trying to find parent of existing buttons');
+        // Try to find toolbar by looking for existing buttons
+        const existingBtn = document.querySelector('[title*="Generate"], [title*="Attach"], .mes_button, .right_menu_button');
+        if (existingBtn) {
+            toolbar = existingBtn.parentElement;
+            console.log('[DELSWIPE] Found toolbar via existing button parent');
+        }
+    }
+    
+    if (!toolbar) {
+        console.log('[DELSWIPE] Could not find toolbar, aborting');
+        return;
+    }
+    
+    // Create toolbar button matching the style of existing buttons
+    const delSwipeBtn = document.createElement('div');
+    delSwipeBtn.id = 'delswipe-toolbar-btn';
+    delSwipeBtn.className = 'right_menu_button menu_button fa-solid fa-trash-can';
+    delSwipeBtn.title = 'Delete current swipe';
+    delSwipeBtn.setAttribute('data-i18n', '[title]Delete Swipe');
+    
+    // Style to match other toolbar buttons
+    delSwipeBtn.style.cssText = `
         cursor: pointer;
-        font-size: 14px;
-        font-weight: bold;
-        font-family: inherit;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        transition: all 0.2s ease;
-        user-select: none;
-        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px;
+        margin: 2px;
+        border-radius: 4px;
+        transition: background-color 0.2s ease;
     `;
     
-    // Add hover effects
-    button.addEventListener('mouseenter', () => {
-        button.style.backgroundColor = 'var(--SmartThemeQuoteColor, #666)';
-        button.style.transform = 'scale(1.05)';
+    // Add hover effect
+    delSwipeBtn.addEventListener('mouseenter', () => {
+        delSwipeBtn.style.backgroundColor = 'var(--SmartThemeQuoteColor, rgba(255,255,255,0.1))';
     });
     
-    button.addEventListener('mouseleave', () => {
-        button.style.backgroundColor = 'var(--SmartThemeBodyColor, #444)';
-        button.style.transform = 'scale(1)';
+    delSwipeBtn.addEventListener('mouseleave', () => {
+        delSwipeBtn.style.backgroundColor = '';
     });
     
-    // Use the proven working click handler
-    button.onclick = executeDelSwipeWorking;
+    // Add click handler
+    delSwipeBtn.addEventListener('click', executeDelSwipeWorking);
     
-    document.body.appendChild(button);
-    console.log('[DELSWIPE] Working button created and added to page');
+    // Insert the button (try to place it near other utility buttons)
+    toolbar.appendChild(delSwipeBtn);
+    
+    console.log('[DELSWIPE] Toolbar button created and added');
     
     // Verify button exists
     setTimeout(() => {
-        const testBtn = document.getElementById('delswipe-working-btn');
-        if (testBtn) {
-            console.log('[DELSWIPE] Button confirmed visible on page');
+        const testBtn = document.getElementById('delswipe-toolbar-btn');
+        if (testBtn && testBtn.offsetParent !== null) {
+            console.log('[DELSWIPE] Toolbar button confirmed visible');
         } else {
-            console.log('[DELSWIPE] ERROR: Button not found after creation');
+            console.log('[DELSWIPE] Toolbar button not visible');
         }
-    }, 100);
+    }, 500);
+}
+
+// Fallback: Create floating button if toolbar integration fails
+function createFloatingButton() {
+    console.log('[DELSWIPE] Creating floating fallback button');
+    
+    const button = document.createElement('button');
+    button.id = 'delswipe-floating-fallback';
+    button.innerHTML = '🗑️';
+    button.title = 'Delete current swipe';
+    button.style.cssText = `
+        position: fixed;
+        bottom: 100px;
+        right: 10px;
+        z-index: 10000;
+        padding: 10px;
+        background: var(--SmartThemeBodyColor, #444);
+        color: var(--SmartThemeEmColor, white);
+        border: 2px solid var(--SmartThemeBorderColor, #666);
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 16px;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    button.addEventListener('click', executeDelSwipeWorking);
+    document.body.appendChild(button);
+    
+    console.log('[DELSWIPE] Floating fallback button created');
 }
 
 // The proven working execution method
 function executeDelSwipeWorking() {
-    console.log('[DELSWIPE] Button clicked! Executing delswipe...');
+    console.log('[DELSWIPE] DelSwipe button clicked! Executing...');
     
     const input = document.getElementById('send_textarea');
     if (input) {
@@ -150,20 +213,10 @@ if (document.readyState === 'loading') {
 
 // Method 2: Delayed fallback
 setTimeout(() => {
-    if (!document.getElementById('delswipe-working-btn')) {
+    if (!document.getElementById('delswipe-toolbar-btn')) {
         console.log('[DELSWIPE] Fallback initialization...');
         initDelSwipeExtension();
     }
 }, 3000);
-
-// Method 3: Window load
-window.addEventListener('load', () => {
-    setTimeout(() => {
-        if (!document.getElementById('delswipe-working-btn')) {
-            console.log('[DELSWIPE] Window load initialization...');
-            initDelSwipeExtension();
-        }
-    }, 1000);
-});
 
 console.log('[DELSWIPE] Extension script loaded');
